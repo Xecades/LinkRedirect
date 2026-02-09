@@ -1,6 +1,6 @@
 # LinkRedirect
 
-A simple, secure, and permanent link redirection service.
+A simple, secure, and permanent link redirection service, that supports dynamic URL generation.
 
 ## Usage
 
@@ -19,20 +19,28 @@ A simple, secure, and permanent link redirection service.
 
     routes:
         example: "https://example.com/actual-url"
-        google: "https://google.com"
+        dynamic_example: "fn://my_custom_function"
     ```
 
-3.  **Run Server**:
+3.  **Dynamic Functions**:
+    Define your custom logic in `custom.py`:
+
+    ```python
+    def my_custom_function(routes):
+        return "https://dynamically-generated-url.com"
+    ```
+
+4.  **Run Server**:
 
     ```bash
     uv run uvicorn main:app --host 0.0.0.0 --port 8000
     ```
 
-4.  **Access Links**:
+5.  **Access Links**:
     ```
     http://<server-ip>:8000/<key>?key=<access_key>
     ```
-    Example: `http://localhost:8000/google?key=your-secret-key`
+    Example: `http://localhost:8000/dynamic_example?key=your-secret-key`
 
 ## Logs
 

@@ -1,9 +1,16 @@
+import importlib
 from pathlib import Path
 
 import yaml
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import RedirectResponse
 from loguru import logger
+
+# Try to import custom module, handle it gracefully if missing
+try:
+    import custom
+except ImportError:
+    logger.warning("Could not import 'custom.py'. Dynamic functions will not work.")
 
 # Configure logging
 logger.add("access.log", rotation="1 week", retention="1 month", level="INFO")
@@ -51,6 +58,15 @@ class ConfigLoader:
         """Loads and parses the YAML configuration file."""
         try:
             logger.info("Reloading configuration...")
+
+            # Reload custom module to pick up changes in custom.py
+            if custom:
+                try:
+                    importlib.reload(custom)
+                    logger.info("Reloaded custom.py module.")
+                except Exception as e:
+                    logger.error(f"Error reloading custom.py: {e}")
+
             with open(self.config_path, encoding="utf-8") as f:
                 config = yaml.safe_load(f)
 
@@ -102,6 +118,25 @@ async def redirect_to_url(path_key: str, key: str = Query(None)):
     target_url = routes.get(path_key)
 
     if target_url:
+        # Check for dynamic function prefix
+        if target_url.startswith("fn://"):
+            func_name = target_url[5:]  # Strip "fn://"
+            if custom and hasattr(custom, func_name):
+                try:
+                    # Call the function, passing current routes as context
+                    func = getattr(custom, func_name)
+                    generated_url = func(routes)
+                    logger.info(f"Redirecting key '{path_key}' to '{generated_url}'")
+                    return RedirectResponse(url=generated_url, status_code=307)
+                except Exception as e:
+                    logger.error(f"Error executing dynamic function '{func_name}': {e}")
+                    raise HTTPException(
+                        status_code=500, detail="Dynamic Link Generation Error"
+                    ) from e
+            else:
+                logger.error(f"Function '{func_name}' not found in custom.py")
+                raise HTTPException(status_code=500, detail="Function Not Found")
+
         logger.info(f"Redirecting key '{path_key}' to '{target_url}'")
         return RedirectResponse(url=target_url, status_code=307)
 
