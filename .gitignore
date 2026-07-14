@@ -10,4 +10,5 @@ wheels/
 .venv
 config.yaml
 access.log
+access.*.log
 custom.py
