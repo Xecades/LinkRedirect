@@ -30,6 +30,12 @@ A simple, secure, and permanent link redirection service, that supports dynamic 
         return "https://dynamically-generated-url.com"
     ```
 
+    A dynamic function may also return a FastAPI `Response`. This is useful when
+    LinkRedirect should fetch an internal-only service and return its content
+    without exposing that service or redirecting the client to it. Synchronous
+    functions run in a worker thread so a slow internal request does not block
+    the server event loop.
+
 4.  **Run Server**:
 
     ```bash

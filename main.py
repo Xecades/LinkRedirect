@@ -1,10 +1,12 @@
 import importlib
+import inspect
 from pathlib import Path
 
 import yaml
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi.responses import RedirectResponse
 from loguru import logger
+from starlette.concurrency import run_in_threadpool
 
 # Try to import custom module, handle it gracefully if missing
 try:
@@ -125,9 +127,20 @@ async def redirect_to_url(path_key: str, key: str = Query(None)):
                 try:
                     # Call the function, passing current routes as context
                     func = getattr(custom, func_name)
-                    generated_url = func(routes)
-                    logger.info(f"Redirecting key '{path_key}' to '{generated_url}'")
-                    return RedirectResponse(url=generated_url, status_code=307)
+                    if inspect.iscoroutinefunction(func):
+                        result = await func(routes)
+                    else:
+                        result = await run_in_threadpool(func, routes)
+
+                    if isinstance(result, Response):
+                        logger.info(f"Returning dynamic response for key '{path_key}'")
+                        return result
+
+                    if not isinstance(result, str):
+                        raise TypeError("Dynamic function must return a URL string or Response")
+
+                    logger.info(f"Redirecting key '{path_key}' to a dynamic URL")
+                    return RedirectResponse(url=result, status_code=307)
                 except Exception as e:
                     logger.error(f"Error executing dynamic function '{func_name}': {e}")
                     raise HTTPException(
